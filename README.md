@@ -30,12 +30,75 @@ P+1 shards are all lost at the same time, before they are replaced.
 To calculate the probability of loss, we need to make some assumptions:
 
 1. Data is stored using *D* data shards and *P* parity shards, and is lost when *P+1* shards are lost.
-1. The annual failure rate of each shard is *shard_failure_rate*.
+1. The annual failure rate of each shard is *shard_annual_failure_rate*.
 1. The number of days it takes to replace a failed shard is *shard_failure_days*.
 1. The failures of individual shards are independent.
 
 ## Calculation
 
 Let look at one period of *shard_failure_days*.  What are the chances of losing
-data in that period?
+data in that period?  For that to happen, P+1 drives (or more) would have to fail 
+in that period.
+
+Over one year, the chances that a shard will fail is evenly distributed over
+all of the *shard_failure_days* periods in the year.  So the probability of
+failing in one period is:
+
+    shard_failure_in_period = shard_annual_failure_rate * shard_failure_days / 365
+
+To lose data, more than one shard must fail at once.  The probability that a given 
+*n* shards will fail in the period is the product of the individual probabilities:
+
+    n_specific_shard_failure_in_period = shard_failure_in_period ** n
+    
+That was the probability for *n* specific shards.  What we care about is the
+probability of losing any *n* shards.  For that we multiply the probability above
+times the number of ways to choose *n* shards from the full set of D+P shards:
+ 
+    n_shard_failures_in_period = choose(n, D+P) * shard_failure_in_period ** n
+    
+We also lose data if more than n shards fail in the period.  To include those,
+we can sum the above formula for n through D+P shards:
+
+    (fill in math)
+    
+The durability in each period is inverse of that.  Durability over the full year 
+happens when there's durability in all of the periods, which is the product of
+probabilities:
+
+    (fill in math)
+
+## Python code
+
+The python code in `durability.py` does the calculations above, with a few tweaks
+to maintain precision when dealing with tiny numbers, and prints out the results
+for a given set of assumptions:
+
+```
+$ python durability.py
+usage: durability.py [-h]
+                     data_shards parity_shards annual_shard_failure_rate
+                     shard_replacement_days
+durability.py: error: too few arguments
+$ python durability.py 4 2 0.10 1
+
+#
+# total shards: 6
+# replacement period (days):  1.0
+# annual shard failure rate: 0.10
+#
+
+|==================================================================================================================================|
+| failure_threshold | individual_prob | cumulative_prob | annual_loss_rate |         annual_odds |        durability |       nines | 
+|----------------------------------------------------------------------------------------------------------------------------------|
+|                 6 |       4.229e-22 |       4.229e-22 |        1.544e-19 | 154 in a sextillion | 1.000000000000000 |    18 nines | 
+|                 5 |       9.259e-18 |       9.260e-18 |        3.380e-15 |  3 in a quadrillion | 0.999999999999997 |    14 nines | 
+|                 4 |       8.447e-14 |       8.448e-14 |        3.083e-11 |    31 in a trillion | 0.999999999969167 |    10 nines | 
+|                 3 |       4.110e-10 |       4.110e-10 |        1.500e-07 |    150 in a billion | 0.999999849970558 | --> 6 nines | 
+|                 2 |       1.125e-06 |       1.125e-06 |        4.106e-04 |    411 in a million | 0.999589425325156 |     3 nines | 
+|                 1 |       1.642e-03 |       1.643e-03 |        4.512e-01 |            5 in ten | 0.548766521902091 |     0 nines | 
+|                 0 |       9.984e-01 |       1.000e+00 |        1.000e+00 |              always | 0.000000000000000 |     0 nines | 
+|==================================================================================================================================|
+```
+
 
