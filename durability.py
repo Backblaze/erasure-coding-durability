@@ -80,7 +80,7 @@ class Table(object):
             return s[:width]
 
 
-def choose(n,r):
+def choose(n, r):
     """
     Returns: How many ways there are to choose a subset of n things from a set of r things.
 
@@ -102,7 +102,7 @@ def binomial_probability(k, n, p):
     Returns: The probability of exactly k of n things happening, when the
              probability of each one (independently) is p.
 
-    See: http://en.wikipedia.org/wiki/Binomial_distribution#Cumulative_distribution_function
+    See: https://en.wikipedia.org/wiki/Binomial_distribution#Probability_mass_function
     """
     return choose(n, k) * (p ** k) * ((1 - p) ** (n - k))
 
@@ -115,61 +115,8 @@ class TestBinomialProbability(unittest.TestCase):
         self.assertAlmostEqual(0.302526, binomial_probability(1, 6, 0.3))
         self.assertAlmostEqual(0.324135, binomial_probability(2, 6, 0.3))
 
-
-def disjunction_probability(p, n):
-    """
-    Computes: 1 - (1 - p)**n
-    Meaning: p happens at least once in n tries
-    
-    Doing the math without losing precision is tricky.  The annual
-    loss rate (a) from the period loss rate (p) for n periods:
-
-        a = 1 - (1 - p) ** n
-
-    After the binomial expansion, you get (for even n):
-
-        a = 1 - (1 - choose(n, 1) * p + choose(n, 2) p**2 - p**3 + p**4 ... + choose(n, n) p**n)
-
-    For odd n, the last term is negative.
-
-    To avoid precision loss, we don't want to to (1 - p) if p is
-    really tiny, so we'll cancel out the 1 and get:
-    you get:
-
-        a = choose(n, 1) * p - choose(n, 2) * p**2 ...
-    """
-    if p < 0.0001:
-        result = 0.0
-        sign = 1
-        for i in xrange(1, n + 1):
-            result += sign * choose(n, i) * (p ** i)
-            sign = -sign
-        return result
-    else:
-        # For high probabilities of loss, the powers of p don't
-        # get small faster than the coefficients get big, and weird
-        # things happen
-            return 1.0 - (1.0 - p) ** n
-
-
-class TestDisjunctionProbability(unittest.TestCase):
-
-    def test_it(self):
-        self.assertAlmostEqual(1.0, disjunction_probability(1.0, 3))
-        self.assertAlmostEqual(0.875, disjunction_probability(0.5, 3))
-        self.assertAlmostEqual(1.0 - 0.9 ** 3, disjunction_probability(0.1, 3))
-
-        self.assertAlmostEqual(1.0, disjunction_probability(1.0, 365))
-        self.assertAlmostEqual(1.0, disjunction_probability(0.5, 365))
-        self.assertAlmostEqual(1.0, disjunction_probability(0.12, 365))
-
-        # From Wolfram Alpha: 1 - (1 - p) ^ 200
-        self.assertAlmostEqual(0.18135117, disjunction_probability(1.0e-3, 200))
-        self.assertAlmostEqual(1.999801e-4, disjunction_probability(1.0e-6, 200))
-        self.assertAlmostEqual(2.0e-7, disjunction_probability(1.0e-9, 200))
-        self.assertAlmostEqual(2.0e-11, disjunction_probability(1.0e-12, 200))
-        self.assertAlmostEqual(2.0e-18, disjunction_probability(1.0e-20, 200))
-
+        # Wolfram Alpha: (1 - 1e-6)^800
+        self.assertAlmostEqual(0.9992003, binomial_probability(0, 800, 1.0e-6))
 
 SCALE_TABLE = [
     (1, 'ten'),
@@ -332,7 +279,7 @@ def calculate_period_cumulative(year_of_periods, total_shards, min_shards):
 
 def count_nines(loss_rate):
     """
-    Returns the number of nines after the decimal point.
+    Returns the number of nines after the decimal point before some other digit happens.
     """
     nines = 0
     power_of_ten = 0.1
