@@ -12,23 +12,6 @@ import sys
 import unittest
 
 
-def make_formatter(values):
-    """
-    Returns a function that can be used to format the values in the
-    list.  Picks a reasonable number of digits of accuracy.
-    """
-    # What's the longest string?
-    max_item_length = max(len(v) for v in values)
-
-    # Make a format string for string values
-    string_format = '%%%ds' % max_item_length
-
-    # Make the format function
-    def formatter(v):
-        return string_format % v
-    return formatter
-
-
 class Table(object):
 
     """
@@ -39,24 +22,13 @@ class Table(object):
           { 'a' : 5, 'b' : 9 } ]
     """
 
-    def __init__(self, data, column_names=None):
+    def __init__(self, data, column_names):
         self.data = data
-        self.formatters = [self._make_formatter(col) for col in column_names]
         self.column_titles = column_names
-
-        first_values = [data[0][col] for col in column_names]
-        first_row = [
-            formatter(v)
-            for (formatter, v) in zip(self.formatters, first_values)
-            ]
         self.column_widths = [
-            max(len(col), len(val))
-            for (col, val) in zip(self.column_titles, first_row)
-            ]
-
-    def _make_formatter(self, column_name):
-        values = [item[column_name] for item in self.data]
-        return make_formatter(values)
+            max(len(col), max(len(item[col]) for item in data))
+            for col in column_names
+        ]
 
     def __str__(self):
         result = []
@@ -80,8 +52,8 @@ class Table(object):
         # Data rows
         for item in self.data:
             result.append('| ')
-            for (col, formatter, w) in zip(self.column_titles, self.formatters, self.column_widths):
-                result.append(self.pad(formatter(item[col]), w))
+            for (col, w) in zip(self.column_titles, self.column_widths):
+                result.append(self.pad(item[col], w))
                 result.append(' | ')
             result.append('\n')
         result.append('|')
