@@ -18,8 +18,18 @@ class Table(object):
     Knows how to display a table of data.
 
     The data is in the form of a list of dicts:
+
         [ { 'a' : 4, 'b' : 8 },
           { 'a' : 5, 'b' : 9 } ]
+
+    And is displayed like this:
+
+        |=======|
+        | a | b |
+        |-------|
+        | 4 | 8 |
+        | 5 | 9 |
+        |=======|
     """
 
     def __init__(self, data, column_names):
