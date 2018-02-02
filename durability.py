@@ -120,6 +120,69 @@ class TestBinomialProbability(unittest.TestCase):
         self.assertAlmostEqual(0.9992003, binomial_probability(0, 800, 1.0e-6))
 
 
+def probability_of_failure_in_any_period(p, n):
+    """
+    Returns the probability that a failure (of probability p in one period)
+    happens once or more in n periods.
+
+    The probability of failure in one period is p, so the probability
+    of not failing is (1 - p).  So the probability of not
+    failing over n periods is (1 - p) ** n, and the probability
+    of one or more failures in n periods is:
+
+        1 - (1 - p) ** n
+
+    Doing the math without losing precision is tricky.
+    After the binomial expansion, you get (for even n):
+
+        a = 1 - (1 - choose(n, 1) * p + choose(n, 2) p**2 - p**3 + p**4 ... + choose(n, n) p**n)
+
+    For odd n, the last term is negative.
+
+    To avoid precision loss, we don't want to to (1 - p) if p is
+    really tiny, so we'll cancel out the 1 and get:
+    you get:
+
+        a = choose(n, 1) * p - choose(n, 2) * p**2 ...
+    """
+    if p < 0.1:
+        # For tiny numbers, (1 - p) can lose precision.
+        # Compute the result for the integer part
+        n_int = int(n)
+        result = 0.0
+        sign = 1
+        for i in xrange(1, n_int + 1):
+            result += sign * choose(n_int, i) * (p ** i)
+            sign = -sign
+        # Adjust the result to include the fractional part
+        # What we want is: 1.0 - (1.0 - result) * ((1.0 - p) ** (n - n_int))
+        # Which gives this when refactored:
+        result = 1.0 - ((1.0 - p) ** (n - n_int)) + result * ((1.0 - p) ** (n - n_int))
+        return result
+    else:
+        # For high probabilities of loss, the powers of p don't
+        # get small faster than the coefficients get big, and weird
+        # things happen
+        return 1.0 - (1.0 - p) ** n
+
+
+class TestProbabilityOfFailureAnyPeriod(unittest.TestCase):
+
+    def test_probability_of_failure(self):
+        # Easy to check
+        self.assertAlmostEqual(0.25, probability_of_failure_in_any_period(0.25, 1))
+        self.assertAlmostEqual(0.4375, probability_of_failure_in_any_period(0.25, 2))
+        self.assertAlmostEqual(0.0199, probability_of_failure_in_any_period(0.01, 2))
+
+        # From Wolfram Alpha, some tests with tiny probabilities:
+        self.assertAlmostEqual(2.0, probability_of_failure_in_any_period(1e-10, 200) * 1e8)
+        self.assertAlmostEqual(2.0, probability_of_failure_in_any_period(1e-30, 200) * 1e28)
+
+        # Check fractional exponents
+        self.assertAlmostEqual(0.1339746, probability_of_failure_in_any_period(0.25, 0.5))
+        self.assertAlmostEqual(0.0345647, probability_of_failure_in_any_period(0.01, 3.5))
+
+
 SCALE_TABLE = [
     (1, 'ten'),
     (2, 'a hundred'),
@@ -272,10 +335,10 @@ def do_scenario(total_shards, min_shards, annual_shard_failure_rate, shard_repla
     print
 
     failure_rate_per_period = year_of_periods.period_failure_rate()
+    failure_probability_per_period = 1.0 - math.exp(-failure_rate_per_period)
     data = []
     period_cumulative_prob = 0.0
     for failed_shards in xrange(total_shards, -1, -1):
-        failure_probability_per_period = 1.0 - math.exp(-failure_rate_per_period)
         period_failure_prob = binomial_probability(failed_shards, total_shards, failure_probability_per_period)
         period_cumulative_prob += period_failure_prob
         annual_loss_rate = year_of_periods.period_loss_rate_to_annual_loss_rate(period_cumulative_prob)
