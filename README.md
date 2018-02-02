@@ -15,11 +15,6 @@ What we would like to compute is the durability of data stored with erasure codi
 based on the durability of the individual shards.
 The durability is the probability of not losing the data over a period of time.
 The period of time we use here is one year, resulting in annual durability.
-
-The durability of data is simply the inverse of the probability of losing the data
-over than same period of time:
-
-    durability = 1 - failure_rate
   
 Systems that use erasure coding to store data will replace shards that are lost.
 Once a shard is replaced, the data is fully intact again.  Data is lost only when
