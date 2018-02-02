@@ -8,6 +8,7 @@
 ######################################################################
 
 import argparse
+import math
 import sys
 import unittest
 
@@ -274,7 +275,8 @@ def do_scenario(total_shards, min_shards, annual_shard_failure_rate, shard_repla
     data = []
     period_cumulative_prob = 0.0
     for failed_shards in xrange(total_shards, -1, -1):
-        period_failure_prob = binomial_probability(failed_shards, total_shards, failure_rate_per_period)
+        failure_probability_per_period = 1.0 - math.exp(-failure_rate_per_period)
+        period_failure_prob = binomial_probability(failed_shards, total_shards, failure_probability_per_period)
         period_cumulative_prob += period_failure_prob
         annual_loss_rate = year_of_periods.period_loss_rate_to_annual_loss_rate(period_cumulative_prob)
         nines = '%d nines' % count_nines(annual_loss_rate)
