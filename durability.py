@@ -82,6 +82,8 @@ class Table(object):
 
 def choose(n,r):
     """
+    Returns: How many ways there are to choose a subset of n things from a set of r things.
+
     Computes n! / (r! (n-r)!) exactly. Returns a python long int.
 
     From: http://stackoverflow.com/questions/3025162/statistics-combinations-in-python
@@ -90,13 +92,16 @@ def choose(n,r):
     assert 0 <= r <= n
 
     c = 1L
-    for (num,denom) in zip(xrange(n,n-r,-1), xrange(1,r+1,1)):
+    for num, denom in zip(xrange(n, n-r, -1), xrange(1, r+1, 1)):
         c = (c * num) // denom
     return c
 
 
 def binomial_probability(k, n, p):
     """
+    Returns: The probability of exactly k of n things happening, when the
+             probability of each one (independently) is p.
+
     See: http://en.wikipedia.org/wiki/Binomial_distribution#Cumulative_distribution_function
     """
     return choose(n, k) * (p ** k) * ((1 - p) ** (n - k))
@@ -105,7 +110,7 @@ def binomial_probability(k, n, p):
 def cumulative_probability(k, n, p):
     """
     Returns the probability of 0 or 1 or ... or k items happening,
-    with a probability y of one item happening.
+    with a probability p of one item happening.
     """
     return sum(
         binomial_probability(i, n, p)
@@ -194,6 +199,7 @@ SCALE_TABLE = [
     (27, 'an octillion')
     ]
 
+
 def pretty_probability(p):
     """
     Takes a number between 0 and 1 and prints it as a probability in
@@ -215,6 +221,9 @@ class YearOfPeriods(object):
     of periods.  A period is the time it takes to replace and
     repopulate a failed drive.  Multiple failures within one period is
     what causes data loss.
+
+    The period duration (in days) is adjusted to the nearest value that
+    divides evenly into 365.
     """
 
     def __init__(self, approx_days_per_period, annual_failure_rate):
