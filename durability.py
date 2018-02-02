@@ -118,6 +118,7 @@ class TestBinomialProbability(unittest.TestCase):
         # Wolfram Alpha: (1 - 1e-6)^800
         self.assertAlmostEqual(0.9992003, binomial_probability(0, 800, 1.0e-6))
 
+
 SCALE_TABLE = [
     (1, 'ten'),
     (2, 'a hundred'),
@@ -228,10 +229,25 @@ class TestYearOfPeriods(unittest.TestCase):
         self.assertAlmostEqual(2.0e-18, yop.period_loss_rate_to_annual_loss_rate(1.0e-20))
 
 
-def calculate_period_cumulative(year_of_periods, total_shards, min_shards):
+def count_nines(loss_rate):
+    """
+    Returns the number of nines after the decimal point before some other digit happens.
+    """
+    nines = 0
+    power_of_ten = 0.1
+    while True:
+        if power_of_ten < loss_rate:
+            return nines
+        power_of_ten /= 10.0
+        nines += 1
+        if power_of_ten == 0.0:
+            return 0
+
+
+def do_scenario(total_shards, min_shards, annual_shard_failure_rate, shard_replacement_days):
     """
     Calculates the cumulative failure rates for different numbers of
-    failures, starting with the most possible, down to 0.  
+    failures, starting with the most possible, down to 0.
 
     The first probability in the table will be extremely improbable,
     because it is the case where ALL of the shards fail.  The next
@@ -240,6 +256,20 @@ def calculate_period_cumulative(year_of_periods, total_shards, min_shards):
     somewhere between all fail and none fail, which always happens, so
     the probability is one.
     """
+
+    year_of_periods = YearOfPeriods(
+        approx_days_per_period = shard_replacement_days,
+        annual_failure_rate = annual_shard_failure_rate
+        )
+
+    print
+    print '#'
+    print '# total shards:', total_shards
+    print '# replacement period (days): %4.1f' % (year_of_periods.days_per_period)
+    print '# annual shard failure rate: %4.2f' % (year_of_periods.annual_failure_rate)
+    print '#'
+    print
+
     failure_rate_per_period = year_of_periods.period_failure_rate()
     data = []
     period_cumulative_prob = 0.0
@@ -261,7 +291,7 @@ def calculate_period_cumulative(year_of_periods, total_shards, min_shards):
             'nines' : nines
             })
 
-    print Table(data, ['failure_threshold', 
+    print Table(data, ['failure_threshold',
                        'individual_prob',
                        'cumulative_prob',
                        'annual_loss_rate',
@@ -270,44 +300,11 @@ def calculate_period_cumulative(year_of_periods, total_shards, min_shards):
                        'nines'
                        ])
     print
-    
+
     return dict(
         (item['failure_threshold'], item)
         for item in data
         )
-
-
-def count_nines(loss_rate):
-    """
-    Returns the number of nines after the decimal point before some other digit happens.
-    """
-    nines = 0
-    power_of_ten = 0.1
-    while True:
-        if power_of_ten < loss_rate:
-            return nines
-        power_of_ten /= 10.0
-        nines += 1
-        if power_of_ten == 0.0:
-            return 0
-
-
-def do_scenario(total_shards, min_shards, annual_shard_failure_rate, shard_replacement_days):
-
-    year_of_periods = YearOfPeriods(
-        approx_days_per_period = shard_replacement_days,
-        annual_failure_rate = annual_shard_failure_rate
-        )
-
-    print
-    print '#'
-    print '# total shards:', total_shards
-    print '# replacement period (days): %4.1f' % (year_of_periods.days_per_period)
-    print '# annual shard failure rate: %4.2f' % (year_of_periods.annual_failure_rate)
-    print '#'
-    print
-
-    calculate_period_cumulative(year_of_periods, total_shards, min_shards)
 
 
 def main():
