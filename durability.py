@@ -107,15 +107,13 @@ def binomial_probability(k, n, p):
     return choose(n, k) * (p ** k) * ((1 - p) ** (n - k))
 
 
-def cumulative_probability(k, n, p):
-    """
-    Returns the probability of 0 or 1 or ... or k items happening,
-    with a probability p of one item happening.
-    """
-    return sum(
-        binomial_probability(i, n, p)
-        for i in xrange(0, k + 1)
-        )
+class TestBinomialProbability(unittest.TestCase):
+
+    def test_binomial_probability(self):
+        # these test cases are from the Wikipedia page
+        self.assertAlmostEqual(0.117649, binomial_probability(0, 6, 0.3))
+        self.assertAlmostEqual(0.302526, binomial_probability(1, 6, 0.3))
+        self.assertAlmostEqual(0.324135, binomial_probability(2, 6, 0.3))
 
 
 def disjunction_probability(p, n):
@@ -171,18 +169,6 @@ class TestDisjunctionProbability(unittest.TestCase):
         self.assertAlmostEqual(2.0e-7, disjunction_probability(1.0e-9, 200))
         self.assertAlmostEqual(2.0e-11, disjunction_probability(1.0e-12, 200))
         self.assertAlmostEqual(2.0e-18, disjunction_probability(1.0e-20, 200))
-
-
-class TestProbability(unittest.TestCase):
-
-    def test_binomial_probability(self):
-        # these test cases are from the Wikipedia page
-        self.assertAlmostEqual(0.117649, binomial_probability(0, 6, 0.3))
-        self.assertAlmostEqual(0.302526, binomial_probability(1, 6, 0.3))
-        self.assertAlmostEqual(0.324135, binomial_probability(2, 6, 0.3))
-
-    def test_cumulative_probability(self):
-        self.assertAlmostEqual(0.744310, cumulative_probability(2, 6, 0.3))
 
 
 SCALE_TABLE = [
@@ -269,7 +255,7 @@ class YearOfPeriods(object):
             return result
         else:
             # For high probabilities of loss, the powers of p don't
-            # get small faster than the coefficiets get big, and weird
+            # get small faster than the coefficients get big, and weird
             # things happen
             return 1.0 - (1.0 - period_loss_rate) ** self.periods_per_year
     
@@ -309,16 +295,17 @@ def calculate_period_cumulative(year_of_periods, total_drives, min_drives):
     """
     failure_rate_per_period = year_of_periods.period_failure_rate()
     data = []
-    for i in xrange(total_drives + 1):
-        period_failure_prob = binomial_probability(i, total_drives, 1.0 - failure_rate_per_period)
-        period_cumulative_prob = cumulative_probability(i, total_drives, 1.0 - failure_rate_per_period)
+    period_cumulative_prob = 0.0
+    for failed_shards in xrange(total_drives, -1, -1):
+        period_failure_prob = binomial_probability(failed_shards, total_drives, failure_rate_per_period)
+        period_cumulative_prob += period_failure_prob
         annual_loss_rate = year_of_periods.period_loss_rate_to_annual_loss_rate(period_cumulative_prob)
         nines = '%d nines' % count_nines(annual_loss_rate)
-        if i == min_drives - 1:
+        if failed_shards == total_drives - min_drives + 1:
             nines = "--> " + nines
         data.append({
             'individual_prob' : ('%10.3e' % period_failure_prob),
-            'failure_threshold' : str(total_drives - i),
+            'failure_threshold' : str(failed_shards),
             'cumulative_prob' : ('%10.3e' % period_cumulative_prob),
             'cumulative_odds' : pretty_probability(period_cumulative_prob),
             'annual_loss_rate' : ('%10.3e' % annual_loss_rate),
