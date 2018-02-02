@@ -205,7 +205,7 @@ class YearOfPeriods(object):
     """
     Supports calculations related to breaking a year up into a number
     of periods.  A period is the time it takes to replace and
-    repopulate a failed drive.  Multiple failures within one period is
+    repopulate a failed shard.  Multiple failures within one period is
     what causes data loss.
 
     The period duration (in days) is adjusted to the nearest value that
@@ -219,7 +219,7 @@ class YearOfPeriods(object):
 
     def period_failure_rate(self):
         """
-        Converts an annual drive failure rate to a drive failure rate
+        Converts an annual shard failure rate to a shard failure rate
         in one period.
         """
         return self.annual_failure_rate / self.periods_per_year
@@ -281,14 +281,14 @@ class TestYearOfPeriods(unittest.TestCase):
         self.assertAlmostEqual(2.0e-18, yop.period_loss_rate_to_annual_loss_rate(1.0e-20))
 
 
-def calculate_period_cumulative(year_of_periods, total_drives, min_drives):
+def calculate_period_cumulative(year_of_periods, total_shards, min_shards):
     """
     Calculates the cumulative failure rates for different numbers of
     failures, starting with the most possible, down to 0.  
 
     The first probability in the table will be extremely improbable,
-    because it is the case where ALL of the drives fail.  The next
-    line in the table is the case where either all of the drives fail,
+    because it is the case where ALL of the shards fail.  The next
+    line in the table is the case where either all of the shards fail,
     or all but one fail.  The final row in the table is the case where
     somewhere between all fail and none fail, which always happens, so
     the probability is one.
@@ -296,12 +296,12 @@ def calculate_period_cumulative(year_of_periods, total_drives, min_drives):
     failure_rate_per_period = year_of_periods.period_failure_rate()
     data = []
     period_cumulative_prob = 0.0
-    for failed_shards in xrange(total_drives, -1, -1):
-        period_failure_prob = binomial_probability(failed_shards, total_drives, failure_rate_per_period)
+    for failed_shards in xrange(total_shards, -1, -1):
+        period_failure_prob = binomial_probability(failed_shards, total_shards, failure_rate_per_period)
         period_cumulative_prob += period_failure_prob
         annual_loss_rate = year_of_periods.period_loss_rate_to_annual_loss_rate(period_cumulative_prob)
         nines = '%d nines' % count_nines(annual_loss_rate)
-        if failed_shards == total_drives - min_drives + 1:
+        if failed_shards == total_shards - min_shards + 1:
             nines = "--> " + nines
         data.append({
             'individual_prob' : ('%10.3e' % period_failure_prob),
@@ -345,7 +345,7 @@ def count_nines(loss_rate):
             return 0
 
 
-def do_scenario(total_drives, min_drives, annual_shard_failure_rate, shard_replacement_days):
+def do_scenario(total_shards, min_shards, annual_shard_failure_rate, shard_replacement_days):
 
     year_of_periods = YearOfPeriods(
         approx_days_per_period = shard_replacement_days,
@@ -354,13 +354,13 @@ def do_scenario(total_drives, min_drives, annual_shard_failure_rate, shard_repla
 
     print
     print '#'
-    print '# total shards:', total_drives
+    print '# total shards:', total_shards
     print '# replacement period (days): %4.1f' % (year_of_periods.days_per_period)
     print '# annual shard failure rate: %4.2f' % (year_of_periods.annual_failure_rate)
     print '#'
     print
 
-    calculate_period_cumulative(year_of_periods, total_drives, min_drives)
+    calculate_period_cumulative(year_of_periods, total_shards, min_shards)
 
 
 def main():
