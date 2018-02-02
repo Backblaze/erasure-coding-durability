@@ -35,7 +35,9 @@ The details of the calculations are in [calculation.ipynb](https://github.com/Ba
 
 ## Python code
 
-The python code in `durability.py` does the calculations above, with a few tweaks
+The python code in 
+[durability.py](https://github.com/Backblaze/erasure-coding-durability/blob/master/durability.py)
+does the calculations above, with a few tweaks
 to maintain precision when dealing with tiny numbers, and prints out the results
 for a given set of assumptions:
 
