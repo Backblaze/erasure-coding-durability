@@ -212,87 +212,6 @@ def pretty_probability(p):
     return 'NEVER'
 
 
-class YearOfPeriods(object):
-
-    """
-    Supports calculations related to breaking a year up into a number
-    of periods.  A period is the time it takes to replace and
-    repopulate a failed shard.  Multiple failures within one period is
-    what causes data loss.
-
-    The period duration (in days) is adjusted to the nearest value that
-    divides evenly into 365.
-    """
-
-    def __init__(self, approx_days_per_period, annual_failure_rate):
-        self.periods_per_year = int(365.0 / approx_days_per_period)
-        self.days_per_period = 365.0 / self.periods_per_year
-        self.annual_failure_rate = annual_failure_rate
-
-    def period_failure_rate(self):
-        """
-        Converts an annual shard failure rate to a shard failure rate
-        in one period.
-        """
-        return self.annual_failure_rate / self.periods_per_year
-
-    def period_loss_rate_to_annual_loss_rate(self, period_loss_rate):
-        """
-        A file will be durable over a full year only if it is durable
-        in ALL of the periods.
-
-        Doing the math without losing precision is tricky.  The annual
-        loss rate (a) from the period loss rate (p) for n periods:
-
-            a = 1 - (1 - p) ** n
-
-        After the binomial expansion, you get (for even n):
-
-            a = 1 - (1 - choose(n, 1) * p + choose(n, 2) p**2 - p**3 + p**4 ... + choose(n, n) p**n)
-
-        For odd n, the last term is negative.
-
-        To avoid precision loss, we don't want to to (1 - p) if p is
-        really tiny, so we'll cancel out the 1 and get:
-        you get:
-
-            a = choose(n, 1) * p - choose(n, 2) * p**2 ...
-        """
-        if period_loss_rate < 0.1:
-            result = 0.0
-            sign = 1
-            for i in xrange(1, self.periods_per_year + 1):
-                result += sign * choose(self.periods_per_year, i) * (period_loss_rate ** i)
-                sign = -sign
-            return result
-        else:
-            # For high probabilities of loss, the powers of p don't
-            # get small faster than the coefficients get big, and weird
-            # things happen
-            return 1.0 - (1.0 - period_loss_rate) ** self.periods_per_year
-    
-
-class TestYearOfPeriods(unittest.TestCase):
-
-    def test_period_failure_rate(self):
-        yop = YearOfPeriods(182.5, 0.10) # 2 periods per year
-        self.assertAlmostEqual(0.05, yop.period_failure_rate())
-
-    def test_period_loss_rate_to_annual_loss_rate(self):
-        yop = YearOfPeriods(121, 0.10) # 3 periods per year
-        self.assertAlmostEqual(1.0, yop.period_loss_rate_to_annual_loss_rate(1.0))
-        self.assertAlmostEqual(0.875, yop.period_loss_rate_to_annual_loss_rate(0.5))
-        self.assertAlmostEqual(1.0 - 0.9 ** 3, yop.period_loss_rate_to_annual_loss_rate(0.1))
-
-        yop = YearOfPeriods(1, 0.10)
-        self.assertAlmostEqual(1.0, yop.period_loss_rate_to_annual_loss_rate(1.0))
-        self.assertAlmostEqual(1.0, yop.period_loss_rate_to_annual_loss_rate(0.5))
-        self.assertAlmostEqual(1.0, yop.period_loss_rate_to_annual_loss_rate(0.12))
-
-        # From Wolfram Alpha: 1 - (1 - 1.0e-20) ^ 200
-        self.assertAlmostEqual(2.0e-18, yop.period_loss_rate_to_annual_loss_rate(1.0e-20))
-
-
 def count_nines(loss_rate):
     """
     Returns the number of nines after the decimal point before some other digit happens.
@@ -321,28 +240,25 @@ def do_scenario(total_shards, min_shards, annual_shard_failure_rate, shard_repla
     the probability is one.
     """
 
-    year_of_periods = YearOfPeriods(
-        approx_days_per_period = shard_replacement_days,
-        annual_failure_rate = annual_shard_failure_rate
-        )
+    num_periods = 365.0 / shard_replacement_days
+    failure_rate_per_period = annual_shard_failure_rate / num_periods
 
     print
     print '#'
     print '# total shards:', total_shards
-    print '# replacement period (days): %4.1f' % (year_of_periods.days_per_period)
-    print '# annual shard failure rate: %4.2f' % (year_of_periods.annual_failure_rate)
+    print '# replacement period (days): %4.1f' % (shard_replacement_days)
+    print '# annual shard failure rate: %4.2f' % (annual_shard_failure_rate)
     print '#'
     print
 
-    failure_rate_per_period = year_of_periods.period_failure_rate()
     failure_probability_per_period = 1.0 - math.exp(-failure_rate_per_period)
     data = []
     period_cumulative_prob = 0.0
     for failed_shards in xrange(total_shards, -1, -1):
         period_failure_prob = binomial_probability(failed_shards, total_shards, failure_probability_per_period)
         period_cumulative_prob += period_failure_prob
-        annual_loss_rate = year_of_periods.period_loss_rate_to_annual_loss_rate(period_cumulative_prob)
-        nines = '%d nines' % count_nines(annual_loss_rate)
+        annual_loss_prob = probability_of_failure_in_any_period(period_cumulative_prob, num_periods)
+        nines = '%d nines' % count_nines(annual_loss_prob)
         if failed_shards == total_shards - min_shards + 1:
             nines = "--> " + nines
         data.append({
@@ -350,9 +266,9 @@ def do_scenario(total_shards, min_shards, annual_shard_failure_rate, shard_repla
             'failure_threshold' : str(failed_shards),
             'cumulative_prob' : ('%10.3e' % period_cumulative_prob),
             'cumulative_odds' : pretty_probability(period_cumulative_prob),
-            'annual_loss_rate' : ('%10.3e' % annual_loss_rate),
-            'annual_odds' : pretty_probability(annual_loss_rate),
-            'durability' : '%17.15f' % (1.0 - annual_loss_rate),
+            'annual_loss_rate' : ('%10.3e' % annual_loss_prob),
+            'annual_odds' : pretty_probability(annual_loss_prob),
+            'durability' : '%17.15f' % (1.0 - annual_loss_prob),
             'nines' : nines
             })
 
