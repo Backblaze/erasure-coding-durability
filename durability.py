@@ -169,14 +169,16 @@ def probability_of_failure_in_any_period(p, n):
 
         a = choose(n, 1) * p - choose(n, 2) * p**2 ...
     """
-    if p < 0.1:
+    if p < 0.01:
         # For tiny numbers, (1 - p) can lose precision.
-        # Compute the result for the integer part
+        # First, compute the result for the integer part
         n_int = int(n)
         result = 0.0
         sign = 1
         for i in xrange(1, n_int + 1):
-            result += sign * choose(n_int, i) * (p ** i)
+            p_exp_i = p ** i
+            if p_exp_i != 0:
+                result += sign * choose(n_int, i) * (p ** i)
             sign = -sign
         # Adjust the result to include the fractional part
         # What we want is: 1.0 - (1.0 - result) * ((1.0 - p) ** (n - n_int))
@@ -201,6 +203,7 @@ class TestProbabilityOfFailureAnyPeriod(unittest.TestCase):
         # From Wolfram Alpha, some tests with tiny probabilities:
         self.assertAlmostEqual(2.0, probability_of_failure_in_any_period(1e-10, 200) * 1e8)
         self.assertAlmostEqual(2.0, probability_of_failure_in_any_period(1e-30, 200) * 1e28)
+        self.assertAlmostEqual(7.60690480739, probability_of_failure_in_any_period(3.47347251479e-103, 2190) * 1e100)
 
         # Check fractional exponents
         self.assertAlmostEqual(0.1339746, probability_of_failure_in_any_period(0.25, 0.5))
@@ -270,8 +273,8 @@ def do_scenario(total_shards, min_shards, annual_shard_failure_rate, shard_repla
     print
     print '#'
     print '# total shards:', total_shards
-    print '# replacement period (days): %4.1f' % (shard_replacement_days)
-    print '# annual shard failure rate: %4.2f' % (annual_shard_failure_rate)
+    print '# replacement period (days): %6.4f' % (shard_replacement_days)
+    print '# annual shard failure rate: %6.4f' % (annual_shard_failure_rate)
     print '#'
     print
 
@@ -355,7 +358,7 @@ def example():
         for k in xrange(4)
     ]
     print_markdown_table(data, ['Number of Failures', 'Probability'])
-    
+
 
 def main():
     if sys.argv[1:] == ['test']:
