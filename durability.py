@@ -81,6 +81,22 @@ class Table(object):
             return s[:width]
 
 
+def print_markdown_table(data, column_names):
+    print
+    print ' | '.join(column_names)
+    print ' | '.join(['---'] * len(column_names))
+    for item in data:
+        print ' | '.join(item[cn] for cn in column_names)
+    print
+
+
+def factorial(n):
+    if n == 0:
+        return 1
+    else:
+        return n * factorial(n - 1)
+
+
 def choose(n, r):
     """
     Returns: How many ways there are to choose a subset of n things from a set of r things.
@@ -118,6 +134,14 @@ class TestBinomialProbability(unittest.TestCase):
 
         # Wolfram Alpha: (1 - 1e-6)^800
         self.assertAlmostEqual(0.9992003, binomial_probability(0, 800, 1.0e-6))
+
+
+def probability_of_failure_for_failure_rate(f):
+    """
+    Given a failure rate f, what's the probability of at least one failure?
+    """
+    probability_of_no_failures = math.exp(-f)
+    return 1.0 - probability_of_no_failures
 
 
 def probability_of_failure_in_any_period(p, n):
@@ -288,10 +312,57 @@ def do_scenario(total_shards, min_shards, annual_shard_failure_rate, shard_repla
         )
 
 
+def example():
+    """
+    This is the example in the explanation.
+    """
+    # Make the table of probabilities of k failures with a failure rate of 2.0:
+    p = 2.0
+    data = [
+        { 'k': str(k), 'p': '%6.4f' % (math.exp(-p) * p**k / factorial(k),) }
+        for k in xrange(7)
+    ]
+    print_markdown_table(data, ['k', 'p'])
+
+    print 'Probability of n Failing'
+    annual_rate = 0.25
+    p_one_failing = probability_of_failure_for_failure_rate(annual_rate)
+    print 'probability of one failing: %6.4f' % p_one_failing
+    print 'probability of none failing: %6.4f' % (1 - p_one_failing)
+    print 'probability of three not failing: %6.4f' % (1 - p_one_failing) ** 3
+    print 'probability of two or more failing: %6.4f' % (binomial_probability(2, 3, p_one_failing) + binomial_probability(3, 3, p_one_failing))
+    print
+    probs = {'ok': (1 - p_one_failing), 'FAIL': p_one_failing}
+    data = []
+    total_prob = 0.0
+    for a in ['ok', 'FAIL']:
+        for b in ['ok', 'FAIL']:
+            for c in ['ok', 'FAIL']:
+                data.append({
+                    'A': a,
+                    'A prob': '%6.4f' % probs[a],
+                    'B': b,
+                    'B prob': '%6.4f' % probs[b],
+                    'C': c,
+                    'C prob': '%6.4f' % probs[c],
+                    'Probability': '%6.4f' % (probs[a] * probs[b] * probs[c])
+                })
+                total_prob += probs[a] * probs[b] * probs[c]
+    print_markdown_table(data, ['A', 'A prob', 'B', 'B prob', 'C', 'C prob', 'Probability'])
+
+    data = [
+        {'Number of Failures': str(k), 'Probability': '%6.4f' % binomial_probability(k, 3, p_one_failing)}
+        for k in xrange(4)
+    ]
+    print_markdown_table(data, ['Number of Failures', 'Probability'])
+    
+
 def main():
     if sys.argv[1:] == ['test']:
         del sys.argv[1]
         unittest.main()
+    elif sys.argv[1:] == ['example']:
+        example()
     else:
         parser = argparse.ArgumentParser()
         parser.add_argument('data_shards', type=int),
