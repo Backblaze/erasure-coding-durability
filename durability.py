@@ -352,6 +352,8 @@ def example():
                 })
                 total_prob += probs[a] * probs[b] * probs[c]
     print_markdown_table(data, ['A', 'A prob', 'B', 'B prob', 'C', 'C prob', 'Probability'])
+    print 'sum of probabilities: %6.4f' % total_prob
+    print
 
     data = [
         {'Number of Failures': str(k), 'Probability': '%6.4f' % binomial_probability(k, 3, p_one_failing)}
