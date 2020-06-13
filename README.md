@@ -47,7 +47,7 @@ usage: durability.py [-h]
                      data_shards parity_shards annual_shard_failure_rate
                      shard_replacement_days
 durability.py: error: too few arguments
-$ python durability.py 4 2 0.10 1python durability.py 17 3 0.00405 6.5
+$ python durability.py 17 3 0.00405 6.5
 
 #
 # total shards: 20
