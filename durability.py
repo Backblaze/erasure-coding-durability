@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 ######################################################################
 # 
 # File: durability.py
@@ -82,12 +82,12 @@ class Table(object):
 
 
 def print_markdown_table(data, column_names):
-    print
-    print ' | '.join(column_names)
-    print ' | '.join(['---'] * len(column_names))
+    print()
+    print(' | '.join(column_names))
+    print(' | '.join(['---'] * len(column_names)))
     for item in data:
-        print ' | '.join(item[cn] for cn in column_names)
-    print
+        print(' | '.join(item[cn] for cn in column_names))
+    print()
 
 
 def factorial(n):
@@ -108,8 +108,8 @@ def choose(n, r):
     assert n >= 0
     assert 0 <= r <= n
 
-    c = 1L
-    for num, denom in zip(xrange(n, n-r, -1), xrange(1, r+1, 1)):
+    c = 1
+    for num, denom in zip(range(n, n-r, -1), range(1, r+1, 1)):
         c = (c * num) // denom
     return c
 
@@ -175,7 +175,7 @@ def probability_of_failure_in_any_period(p, n):
         n_int = int(n)
         result = 0.0
         sign = 1
-        for i in xrange(1, n_int + 1):
+        for i in range(1, n_int + 1):
             p_exp_i = p ** i
             if p_exp_i != 0:
                 result += sign * choose(n_int, i) * (p ** i)
@@ -270,18 +270,18 @@ def do_scenario(total_shards, min_shards, annual_shard_failure_rate, shard_repla
     num_periods = 365.0 / shard_replacement_days
     failure_rate_per_period = annual_shard_failure_rate / num_periods
 
-    print
-    print '#'
-    print '# total shards:', total_shards
-    print '# replacement period (days): %6.4f' % (shard_replacement_days)
-    print '# annual shard failure rate: %6.4f' % (annual_shard_failure_rate)
-    print '#'
-    print
+    print()
+    print('#')
+    print('# total shards:', total_shards)
+    print('# replacement period (days): %6.4f' % (shard_replacement_days))
+    print('# annual shard failure rate: %6.4f' % (annual_shard_failure_rate))
+    print('#')
+    print()
 
     failure_probability_per_period = 1.0 - math.exp(-failure_rate_per_period)
     data = []
     period_cumulative_prob = 0.0
-    for failed_shards in xrange(total_shards, -1, -1):
+    for failed_shards in range(total_shards, -1, -1):
         period_failure_prob = binomial_probability(failed_shards, total_shards, failure_probability_per_period)
         period_cumulative_prob += period_failure_prob
         annual_loss_prob = probability_of_failure_in_any_period(period_cumulative_prob, num_periods)
@@ -299,15 +299,15 @@ def do_scenario(total_shards, min_shards, annual_shard_failure_rate, shard_repla
             'nines' : nines
             })
 
-    print Table(data, ['failure_threshold',
+    print(Table(data, ['failure_threshold',
                        'individual_prob',
                        'cumulative_prob',
                        'annual_loss_rate',
                        'annual_odds',
                        'durability',
                        'nines'
-                       ])
-    print
+                       ]))
+    print()
 
     return dict(
         (item['failure_threshold'], item)
@@ -323,18 +323,18 @@ def example():
     p = 2.0
     data = [
         { 'k': str(k), 'p': '%6.4f' % (math.exp(-p) * p**k / factorial(k),) }
-        for k in xrange(7)
+        for k in range(7)
     ]
     print_markdown_table(data, ['k', 'p'])
 
-    print 'Probability of n Failing'
+    print('Probability of n Failing')
     annual_rate = 0.25
     p_one_failing = probability_of_failure_for_failure_rate(annual_rate)
-    print 'probability of one failing: %6.4f' % p_one_failing
-    print 'probability of none failing: %6.4f' % (1 - p_one_failing)
-    print 'probability of three not failing: %6.4f' % (1 - p_one_failing) ** 3
-    print 'probability of two or more failing: %6.4f' % (binomial_probability(2, 3, p_one_failing) + binomial_probability(3, 3, p_one_failing))
-    print
+    print('probability of one failing: %6.4f' % p_one_failing)
+    print('probability of none failing: %6.4f' % (1 - p_one_failing))
+    print('probability of three not failing: %6.4f' % (1 - p_one_failing) ** 3)
+    print('probability of two or more failing: %6.4f' % (binomial_probability(2, 3, p_one_failing) + binomial_probability(3, 3, p_one_failing)))
+    print()
     probs = {'ok': (1 - p_one_failing), 'FAIL': p_one_failing}
     data = []
     total_prob = 0.0
@@ -352,12 +352,12 @@ def example():
                 })
                 total_prob += probs[a] * probs[b] * probs[c]
     print_markdown_table(data, ['A', 'A prob', 'B', 'B prob', 'C', 'C prob', 'Probability'])
-    print 'sum of probabilities: %6.4f' % total_prob
-    print
+    print('sum of probabilities: %6.4f' % total_prob)
+    print()
 
     data = [
         {'Number of Failures': str(k), 'Probability': '%6.4f' % binomial_probability(k, 3, p_one_failing)}
-        for k in xrange(4)
+        for k in range(4)
     ]
     print_markdown_table(data, ['Number of Failures', 'Probability'])
 
